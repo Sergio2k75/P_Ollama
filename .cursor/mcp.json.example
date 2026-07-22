@@ -1,0 +1,39 @@
+{
+  "_README": [
+    "Copy this file to `.cursor/mcp.json` (gitignored) and edit as needed.",
+    "Pin versions, scope filesystem roots, inject secrets via ${env:VAR}.",
+    "Disable any server you are not actively using with \"disabled\": true."
+  ],
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem@2025.10.20",
+        "./app",
+        "./components",
+        "./public",
+        "./docs"
+      ]
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"]
+    },
+    "shadcn": {
+      "command": "npx",
+      "args": ["-y", "shadcn@4.7.0", "mcp"]
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github@latest"],
+      "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "${env:GH_PAT}" },
+      "disabled": true
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"],
+      "disabled": true
+    }
+  }
+}

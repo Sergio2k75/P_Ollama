@@ -1,0 +1,2 @@
+# Place your reusable primitives here (Button.tsx, Input.tsx, Logo.tsx, ...).
+# Keep them token-driven — read tokens from app/globals.css.
