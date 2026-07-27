@@ -21,6 +21,13 @@ npm install
 npm run dev
 ```
 
+## Safe mode / compiling errors:
+Remove-Item -Recurse -Force .next, node_modules
+Remove-Item package-lock.json
+npm install
+$env:NODE_OPTIONS="--max-old-space-size=4096"
+npm run dev
+
 Open [http://localhost:3000](http://localhost:3000).
 
 If Ollama is not running, the panel still loads and shows an offline state for the selected host.
