@@ -22,6 +22,7 @@ test('renders the core dashboard layout', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Ollama Panel' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Host status' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Models', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Model recommendations' })).toBeVisible();
   await expect(page.getByRole('button', { name: /add host/i })).toBeVisible();
   await expect(page.getByText(/Monitor Ollama host health/i)).toBeVisible();
 });

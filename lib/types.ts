@@ -11,7 +11,17 @@ export type OllamaPanelStatus = {
   version?: string;
   models: OllamaModel[];
   running: OllamaRunningModel[];
+  recommendations?: OllamaModelRecommendation[];
   error?: string;
+};
+
+export type OllamaModelRecommendation = {
+  model: string;
+  description?: string;
+  context_length?: number;
+  max_output_tokens?: number;
+  required_plan?: string;
+  vram_bytes?: number;
 };
 
 export type OllamaModel = {

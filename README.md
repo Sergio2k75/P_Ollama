@@ -21,7 +21,7 @@ npm install
 npm run dev
 ```
 
-## Safe mode / compiling errors:
+## Safe mode / compiling errors
 Remove-Item -Recurse -Force .next, node_modules
 Remove-Item package-lock.json
 npm install

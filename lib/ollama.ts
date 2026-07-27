@@ -93,6 +93,16 @@ async function fetchJson<T>(url: string): Promise<T | null> {
 type VersionResponse = { version?: string };
 type TagsResponse = { models?: OllamaModel[] };
 type PsResponse = { models?: OllamaRunningModel[] };
+type RecommendationsResponse = {
+  recommendations?: Array<{
+    model: string;
+    description?: string;
+    context_length?: number;
+    max_output_tokens?: number;
+    required_plan?: string;
+    vram_bytes?: number;
+  }>;
+};
 
 /**
  * Fetches the status of an Ollama host including version, available models, and running models.
@@ -125,9 +135,10 @@ export async function fetchOllamaStatus(hostInput: string): Promise<OllamaPanelS
     };
   }
 
-  const [tagsData, psData] = await Promise.all([
+  const [tagsData, psData, recommendationsData] = await Promise.all([
     fetchJson<TagsResponse>(`${host}/api/tags`),
     fetchJson<PsResponse>(`${host}/api/ps`),
+    fetchJson<RecommendationsResponse>(`${host}/api/experimental/model-recommendations`),
   ]);
 
   return {
@@ -136,5 +147,6 @@ export async function fetchOllamaStatus(hostInput: string): Promise<OllamaPanelS
     version: versionData.version,
     models: tagsData?.models ?? [],
     running: psData?.models ?? [],
+    recommendations: recommendationsData?.recommendations ?? [],
   };
 }
