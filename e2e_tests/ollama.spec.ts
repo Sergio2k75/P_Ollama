@@ -27,6 +27,10 @@ test('renders the core dashboard layout', async ({ page }) => {
   await expect(page.getByText(/Monitor Ollama host health/i)).toBeVisible();
 });
 
+test('shows a refresh state for running models', async ({ page }) => {
+  await expect(page.getByText(/Refreshing|Last updated|Waiting for first update/i)).toBeVisible();
+});
+
 test('opens and closes the add-host dialog with keyboard', async ({ page }) => {
   await page.getByRole('button', { name: /add host/i }).focus();
   await page.keyboard.press('Enter');

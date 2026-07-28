@@ -1,4 +1,5 @@
 import { Card } from "@/components/ui/Card";
+import { RunningModelsCard } from "@/components/sections/RunningModelsCard";
 import { PHeading, PText } from "@porsche-design-system/components-react/ssr";
 import type { OllamaModelRecommendation, OllamaPanelStatus } from "@/lib/types";
 
@@ -137,12 +138,7 @@ export function ModelsSection({ status }: ModelsSectionProps) {
           />
         </Card>
 
-        <Card title="Running models" description="From GET /api/ps">
-          <ModelList
-            items={status.running}
-            emptyMessage="No models are currently running."
-          />
-        </Card>
+        <RunningModelsCard host={status.host} initialRunning={status.running} />
       </div>
 
       <Card title="Model recommendations" description="From GET /api/experimental/model-recommendations">

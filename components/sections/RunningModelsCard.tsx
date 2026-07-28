@@ -1,0 +1,94 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { PText } from "@porsche-design-system/components-react/ssr";
+import { Card } from "@/components/ui/Card";
+import type { OllamaPanelStatus, OllamaRunningModel } from "@/lib/types";
+
+type RunningModelsCardProps = {
+  host: string;
+  initialRunning: OllamaRunningModel[];
+};
+
+const REFRESH_INTERVAL_MS = 10000;
+
+function RunningModelList({ items }: { items: OllamaRunningModel[] }) {
+  if (items.length === 0) {
+    return (
+      <PText size="small" color="contrast-medium">
+        No models are currently running.
+      </PText>
+    );
+  }
+
+  return (
+    <ul className="grid gap-static-sm" role="list">
+      {items.map((item, index) => (
+        <li
+          key={`${item.name}-${index}`}
+          className="rounded-md border border-contrast-low bg-frosted-soft px-static-sm py-static-sm break-all text-small"
+        >
+          {item.name}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function RunningModelsCard({ host, initialRunning }: RunningModelsCardProps) {
+  const [running, setRunning] = useState(initialRunning);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  useEffect(() => {
+    let ignore = false;
+
+    const refreshRunningModels = async () => {
+      setIsRefreshing(true);
+
+      try {
+        const response = await fetch(`/api/ollama/status?host=${encodeURIComponent(host)}`, {
+          cache: "no-store",
+        });
+        const data = (await response.json()) as OllamaPanelStatus;
+
+        if (!ignore) {
+          setRunning(data.running ?? []);
+          setLastUpdated(new Date());
+        }
+      } catch {
+        if (!ignore) {
+          setLastUpdated(new Date());
+        }
+      } finally {
+        if (!ignore) {
+          setIsRefreshing(false);
+        }
+      }
+    };
+
+    void refreshRunningModels();
+
+    const intervalId = window.setInterval(() => {
+      void refreshRunningModels();
+    }, REFRESH_INTERVAL_MS);
+
+    return () => {
+      ignore = true;
+      window.clearInterval(intervalId);
+    };
+  }, [host]);
+
+  return (
+    <Card title="Running models" description="From GET /api/ps">
+      <div className="flex flex-wrap items-center justify-between gap-static-sm" aria-live="polite">
+        <PText size="x-small" color="contrast-medium">
+          {isRefreshing ? "Refreshing…" : lastUpdated ? `Last updated ${lastUpdated.toLocaleTimeString()}` : "Waiting for first update"}
+        </PText>
+      </div>
+      <div className="mt-static-sm">
+        <RunningModelList items={running} />
+      </div>
+    </Card>
+  );
+}
