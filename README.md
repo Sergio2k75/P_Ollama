@@ -2,6 +2,10 @@
 
 Local-first web dashboard for monitoring one or more [Ollama](https://ollama.com) hosts. See host online/offline status, Ollama version, installed models, running models, and switch between hosts from the browser.
 
+## Screenshots
+
+![Ollama Panel overview](docs/screenshots/overview.png)
+
 ## Prerequisites
 
 - **Node.js** 20 or newer

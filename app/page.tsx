@@ -29,7 +29,7 @@ export default async function Home({ searchParams }: PageProps) {
             Ollama Panel
           </PHeading>
           <PText size="x-small" color="contrast-medium">
-            version 0.11
+            version 0.12
           </PText>
         </div>
       </header>
