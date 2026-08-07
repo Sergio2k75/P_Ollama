@@ -217,7 +217,13 @@ export function HostManager({ activeHost }: HostManagerProps) {
 
                 {host.isDefault ? (
                   <PTag variant="secondary">Default</PTag>
-                ) : (
+                ) : null}
+
+                {isActive ? (
+                  <PTag variant="primary">Selected</PTag>
+                ) : null}
+
+                {!host.isDefault ? (
                   <PButton
                     type="button"
                     variant="secondary"
@@ -226,7 +232,7 @@ export function HostManager({ activeHost }: HostManagerProps) {
                   >
                     Remove
                   </PButton>
-                )}
+                ) : null}
               </li>
             );
           })}
