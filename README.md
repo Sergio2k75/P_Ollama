@@ -52,6 +52,9 @@ If Ollama is not running, the panel still loads and shows an offline state for t
 | `npm run build` | Production build |
 | `npm run start` | Run production server |
 | `npm run lint` | ESLint |
+| `npm run precommit` | Bump app version by 0.01 and refresh `docs/screenshots/overview.png` (runs automatically on commit) |
+| `npm run screenshot` | Capture `docs/screenshots/overview.png` without bumping the version |
+| `SKIP_VERSION_BUMP=1 git commit ...` | Skip version bump and screenshot on commit |
 
 ## Architecture
 

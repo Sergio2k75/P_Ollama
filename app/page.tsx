@@ -2,6 +2,7 @@ import { HostManager } from "@/components/HostManager";
 import { HeroSection } from "@/components/sections/HeroSection";
 import { ModelsSection } from "@/components/sections/ModelsSection";
 import { StatusSection } from "@/components/sections/StatusSection";
+import { APP_VERSION } from "@/lib/app-version";
 import { DEFAULT_HOST_URL } from "@/lib/hosts";
 import { fetchOllamaStatus, validateHostUrl } from "@/lib/ollama";
 import { PHeading, PText } from "@porsche-design-system/components-react/ssr";
@@ -29,7 +30,7 @@ export default async function Home({ searchParams }: PageProps) {
             Ollama Panel
           </PHeading>
           <PText size="x-small" color="contrast-medium">
-            version 0.12
+            version {APP_VERSION}
           </PText>
         </div>
       </header>
