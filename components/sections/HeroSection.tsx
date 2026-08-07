@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/Badge";
-import { PHeading, PText } from "@porsche-design-system/components-react/ssr";
+import { PText } from "@porsche-design-system/components-react/ssr";
+import { DEFAULT_HOST_URL } from "@/lib/hosts";
 
 type HeroSectionProps = {
   activeHost: string;
@@ -11,6 +12,8 @@ type HeroSectionProps = {
  * @returns The hero section component
  */
 export function HeroSection({ activeHost }: HeroSectionProps) {
+  const isDefaultHost = activeHost === DEFAULT_HOST_URL;
+
   return (
     <section aria-labelledby="hero-title" className="grid gap-fluid-sm">
       <PText size="medium" color="contrast-medium" className="max-w-3xl">
@@ -18,7 +21,8 @@ export function HeroSection({ activeHost }: HeroSectionProps) {
         from one simple dashboard.
       </PText>
       <div className="flex flex-wrap items-center gap-static-sm">
-        <Badge variant="neutral">Default host</Badge>
+        <Badge variant="accent">Selected host</Badge>
+        {isDefaultHost ? <Badge variant="neutral">Default</Badge> : null}
         <code className="rounded-md bg-frosted-soft px-static-sm py-static-xs text-small">
           {activeHost}
         </code>

@@ -269,6 +269,7 @@ Use badges for:
 * Running
 * Local
 * Default host
+* Selected
 
 Badge shape:
 
