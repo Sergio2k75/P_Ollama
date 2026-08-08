@@ -56,6 +56,24 @@ test('adds, selects, and removes a host using shorthand input', async ({ page })
   await expect(page.getByText('Workstation')).not.toBeVisible();
 });
 
+test('adds a host when crypto.randomUUID is unavailable (LAN http context)', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(globalThis.crypto, 'randomUUID', {
+      value: undefined,
+      configurable: true,
+    });
+  });
+  await page.reload();
+
+  await page.getByRole('button', { name: /add host/i }).click();
+  await page.getByLabel('Host URL').fill('192.168.1.20');
+  await page.getByLabel('Display name (optional)').fill('LAN box');
+  await page.getByRole('button', { name: /save host/i }).click();
+
+  await expect(page.getByText('LAN box')).toBeVisible();
+  await expect(page.getByText('http://192.168.1.20:11434')).toBeVisible();
+});
+
 test('keeps the dashboard usable on a small mobile viewport', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
