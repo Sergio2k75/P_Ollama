@@ -42,8 +42,10 @@ export function RunningModelsCard({ host, initialRunning }: RunningModelsCardPro
 
   useEffect(() => {
     let ignore = false;
+    let sequence = 0;
 
     const refreshRunningModels = async () => {
+      const requestId = ++sequence;
       setIsRefreshing(true);
 
       try {
@@ -51,17 +53,16 @@ export function RunningModelsCard({ host, initialRunning }: RunningModelsCardPro
           cache: "no-store",
         });
         const data = (await response.json()) as OllamaPanelStatus;
+        const nextRunning = Array.isArray(data.running) ? data.running : [];
 
-        if (!ignore) {
-          setRunning(data.running ?? []);
+        if (!ignore && requestId === sequence) {
+          setRunning(nextRunning);
           setLastUpdated(new Date());
         }
       } catch {
-        if (!ignore) {
-          setLastUpdated(new Date());
-        }
+        // Keep the last good snapshot for this host; do not pretend the refresh succeeded.
       } finally {
-        if (!ignore) {
+        if (!ignore && requestId === sequence) {
           setIsRefreshing(false);
         }
       }

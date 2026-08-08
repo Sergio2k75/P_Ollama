@@ -159,8 +159,10 @@ export async function fetchOllamaStatus(hostInput: string): Promise<OllamaPanelS
     host,
     online: true,
     version: versionData.version,
-    models: tagsData?.models ?? [],
-    running: psData?.models ?? [],
-    recommendations: recommendationsData?.recommendations ?? [],
+    models: Array.isArray(tagsData?.models) ? tagsData.models : [],
+    running: Array.isArray(psData?.models) ? psData.models : [],
+    recommendations: Array.isArray(recommendationsData?.recommendations)
+      ? recommendationsData.recommendations
+      : [],
   };
 }
