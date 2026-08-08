@@ -10,8 +10,18 @@ const FETCH_TIMEOUT_MS = 5000;
 const HTTP_SCHEME_PATTERN = /^https?:\/\//i;
 
 /**
+ * True when the candidate URL string includes an explicit numeric port.
+ * Needed because `URL.port` is "" for protocol defaults (http:80, https:443)
+ * even when the input was `host:80` / `host:443`.
+ */
+function hasExplicitPort(candidate: string): boolean {
+  return /^https?:\/\/(?:\[[^\]]+\]|[^[/:?#]+):\d+(?:[/?#]|$)/i.test(candidate);
+}
+
+/**
  * Normalizes shorthand host input (IP, hostname, or full URL) to an Ollama base URL.
  * Prepends http:// when missing; defaults port to Ollama's 11434 when omitted.
+ * Explicit ports are preserved, including http:80 and https:443.
  * @param raw - User-entered host string
  * @returns Normalized origin (including explicit port) or null if invalid
  */
@@ -25,6 +35,8 @@ export function normalizeHostInput(raw: string): string | null {
   if (!HTTP_SCHEME_PATTERN.test(candidate)) {
     candidate = `http://${candidate}`;
   }
+
+  const explicitPort = hasExplicitPort(candidate);
 
   let url: URL;
   try {
@@ -54,7 +66,9 @@ export function normalizeHostInput(raw: string): string | null {
     return null;
   }
 
-  if (!url.port) {
+  // Only default to 11434 when the user omitted a port. Do not treat
+  // protocol-default ports (80/443) as omitted — URL.port is empty for those.
+  if (!explicitPort) {
     url.port = String(OLLAMA_DEFAULT_PORT);
   }
 

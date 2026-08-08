@@ -55,3 +55,29 @@ test('GET /api/ollama/status defaults to a status object shape', async ({ reques
     running: expect.any(Array),
   }));
 });
+
+test('preserves explicit http:80 and https:443 instead of rewriting to 11434', async ({ request }) => {
+  const http80 = await request.get(
+    `/api/ollama/status?host=${encodeURIComponent('http://127.0.0.1:80')}`,
+  );
+  expect(http80.ok()).toBeTruthy();
+  const http80Body = await http80.json();
+  // URL.origin omits :80 for http; the critical assertion is that we did not force :11434
+  expect(http80Body.host).toBe('http://127.0.0.1');
+
+  const https443 = await request.get(
+    `/api/ollama/status?host=${encodeURIComponent('https://example.com:443')}`,
+  );
+  expect(https443.ok()).toBeTruthy();
+  const https443Body = await https443.json();
+  expect(https443Body.host).toBe('https://example.com');
+});
+
+test('still defaults omitted ports to 11434', async ({ request }) => {
+  const response = await request.get(
+    `/api/ollama/status?host=${encodeURIComponent('http://192.168.1.10')}`,
+  );
+  expect(response.ok()).toBeTruthy();
+  const body = await response.json();
+  expect(body.host).toBe('http://192.168.1.10:11434');
+});
