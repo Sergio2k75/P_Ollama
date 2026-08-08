@@ -8,6 +8,7 @@ import {
   ACTIVE_HOST_STORAGE_KEY,
   DEFAULT_HOST,
   HOSTS_STORAGE_KEY,
+  createHostId,
 } from "@/lib/hosts";
 import { validateHostUrl } from "@/lib/ollama";
 import type { OllamaHost } from "@/lib/types";
@@ -152,7 +153,7 @@ export function HostManager({ activeHost }: HostManagerProps) {
       "Ollama host";
 
     const newHost: OllamaHost = {
-      id: crypto.randomUUID(),
+      id: createHostId(),
       name: label,
       url: normalizedUrl,
     };
