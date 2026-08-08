@@ -86,6 +86,9 @@ export function validateHostUrl(raw: string): string | null {
 
 /**
  * Fetches and parses JSON from a URL with timeout protection.
+ * Redirects are not followed: `normalizeHostInput` only validates the
+ * caller-chosen origin, so following `Location` would allow SSRF into
+ * internal hosts/paths that validation intentionally rejects.
  * @param url - The URL to fetch from
  * @returns The parsed JSON response or null if the request fails
  */
@@ -94,6 +97,7 @@ async function fetchJson<T>(url: string): Promise<T | null> {
     const response = await fetch(url, {
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       cache: "no-store",
+      redirect: "manual",
     });
     if (!response.ok) {
       return null;
@@ -138,8 +142,10 @@ export async function fetchOllamaStatus(hostInput: string): Promise<OllamaPanelS
   }
 
   const versionData = await fetchJson<VersionResponse>(`${host}/api/version`);
+  const version =
+    typeof versionData?.version === "string" ? versionData.version : null;
 
-  if (!versionData?.version) {
+  if (!version) {
     return {
       host,
       online: false,
@@ -158,11 +164,45 @@ export async function fetchOllamaStatus(hostInput: string): Promise<OllamaPanelS
   return {
     host,
     online: true,
-    version: versionData.version,
-    models: Array.isArray(tagsData?.models) ? tagsData.models : [],
-    running: Array.isArray(psData?.models) ? psData.models : [],
-    recommendations: Array.isArray(recommendationsData?.recommendations)
-      ? recommendationsData.recommendations
-      : [],
+    version,
+    models: sanitizeNamedModels(tagsData?.models),
+    running: sanitizeNamedModels(psData?.models),
+    recommendations: sanitizeRecommendations(recommendationsData?.recommendations),
   };
+}
+
+function sanitizeNamedModels<T extends { name: string }>(models: unknown): T[] {
+  if (!Array.isArray(models)) {
+    return [];
+  }
+
+  return models.flatMap((item) => {
+    if (!item || typeof item !== "object") {
+      return [];
+    }
+    const name = (item as { name?: unknown }).name;
+    if (typeof name !== "string" || !name) {
+      return [];
+    }
+    return [item as T];
+  });
+}
+
+function sanitizeRecommendations(
+  recommendations: unknown,
+): NonNullable<OllamaPanelStatus["recommendations"]> {
+  if (!Array.isArray(recommendations)) {
+    return [];
+  }
+
+  return recommendations.flatMap((item) => {
+    if (!item || typeof item !== "object") {
+      return [];
+    }
+    const model = (item as { model?: unknown }).model;
+    if (typeof model !== "string" || !model) {
+      return [];
+    }
+    return [item as NonNullable<OllamaPanelStatus["recommendations"]>[number]];
+  });
 }
