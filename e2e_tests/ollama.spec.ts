@@ -57,13 +57,15 @@ test('adds, selects, and removes a host using shorthand input', async ({ page })
 });
 
 test('clears previous running models immediately when switching hosts', async ({ page }) => {
+  const runningCard = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Running models' }) });
+
   await page.route('**/api/ollama/status**', async (route) => {
     const requestUrl = new URL(route.request().url());
     const host = requestUrl.searchParams.get('host') ?? '';
 
     if (host.includes('192.168.1.10')) {
       // Stay in-flight long enough that a stale client snapshot would still be visible.
-      await new Promise((resolve) => setTimeout(resolve, 3000));
+      await new Promise((resolve) => setTimeout(resolve, 2500));
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -92,16 +94,21 @@ test('clears previous running models immediately when switching hosts', async ({
   });
 
   await page.reload();
-  await expect(page.getByText('stale-host-model')).toBeVisible();
+  await expect(runningCard.getByText('stale-host-model')).toBeVisible();
 
   await page.getByRole('button', { name: /add host/i }).click();
   await page.getByLabel('Host URL').fill('192.168.1.10');
   await page.getByLabel('Display name (optional)').fill('LAN target');
   await page.getByRole('button', { name: /save host/i }).click();
 
-  await expect(page.getByText('LAN target')).toBeVisible();
+  await expect(page).toHaveURL(/192\.168\.1\.10/);
+  await expect(page.getByRole('button', { name: /Select host LAN target/i })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   // Must not keep showing the previous host's running models while the new refresh is delayed.
-  await expect(page.getByText('stale-host-model')).toHaveCount(0);
+  await expect(runningCard.getByText('stale-host-model')).toHaveCount(0);
+  await expect(runningCard.getByText('Refreshing…')).toBeVisible();
 });
 
 test('adds a host when crypto.randomUUID is unavailable (LAN http context)', async ({ page }) => {

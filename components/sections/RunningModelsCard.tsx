@@ -37,8 +37,18 @@ function RunningModelList({ items }: { items: OllamaRunningModel[] }) {
 
 export function RunningModelsCard({ host, initialRunning }: RunningModelsCardProps) {
   const [running, setRunning] = useState(initialRunning);
+  const [activeHost, setActiveHost] = useState(host);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Soft-navigating `?host=` preserves this client component. Reset the snapshot
+  // as soon as the host prop changes so we never show another host's models.
+  if (host !== activeHost) {
+    setActiveHost(host);
+    setRunning(initialRunning);
+    setLastUpdated(null);
+    setIsRefreshing(false);
+  }
 
   useEffect(() => {
     let ignore = false;
