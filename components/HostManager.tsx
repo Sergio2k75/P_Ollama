@@ -59,13 +59,17 @@ export function HostManager({ activeHost }: HostManagerProps) {
   const dialogDescriptionId = useId();
   const addButtonId = useId();
 
-  const [hosts, setHosts] = useState<OllamaHost[]>(() => loadHosts());
+  const [hosts, setHosts] = useState<OllamaHost[]>([DEFAULT_HOST]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [urlValue, setUrlValue] = useState("");
   const [nameValue, setNameValue] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
 
   const urlInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    setHosts(loadHosts());
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(ACTIVE_HOST_STORAGE_KEY, activeHost);
@@ -214,10 +218,6 @@ export function HostManager({ activeHost }: HostManagerProps) {
                     {host.url}
                   </PText>
                 </button>
-
-                {host.isDefault ? (
-                  <PTag variant="secondary">Default</PTag>
-                ) : null}
 
                 {isActive ? (
                   <PTag variant="primary">Selected</PTag>

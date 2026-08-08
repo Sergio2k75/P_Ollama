@@ -36,7 +36,7 @@ export default async function Home({ searchParams }: PageProps) {
       </header>
 
       <main className="mx-auto grid max-w-[1120px] gap-fluid-lg px-fluid-md py-fluid-lg">
-        <HeroSection activeHost={activeHost} />
+        <HeroSection />
         <HostManager activeHost={activeHost} />
         <StatusSection status={status} />
         <ModelsSection status={status} />
