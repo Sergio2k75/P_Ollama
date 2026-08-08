@@ -37,13 +37,25 @@ function RunningModelList({ items }: { items: OllamaRunningModel[] }) {
 
 export function RunningModelsCard({ host, initialRunning }: RunningModelsCardProps) {
   const [running, setRunning] = useState(initialRunning);
+  const [activeHost, setActiveHost] = useState(host);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  // Soft-navigating `?host=` preserves this client component. Reset the snapshot
+  // as soon as the host prop changes so we never show another host's models.
+  if (host !== activeHost) {
+    setActiveHost(host);
+    setRunning(initialRunning);
+    setLastUpdated(null);
+    setIsRefreshing(false);
+  }
+
   useEffect(() => {
     let ignore = false;
+    let sequence = 0;
 
     const refreshRunningModels = async () => {
+      const requestId = ++sequence;
       setIsRefreshing(true);
 
       try {
@@ -51,17 +63,16 @@ export function RunningModelsCard({ host, initialRunning }: RunningModelsCardPro
           cache: "no-store",
         });
         const data = (await response.json()) as OllamaPanelStatus;
+        const nextRunning = Array.isArray(data.running) ? data.running : [];
 
-        if (!ignore) {
-          setRunning(data.running ?? []);
+        if (!ignore && requestId === sequence) {
+          setRunning(nextRunning);
           setLastUpdated(new Date());
         }
       } catch {
-        if (!ignore) {
-          setLastUpdated(new Date());
-        }
+        // Keep the last good snapshot for this host; do not pretend the refresh succeeded.
       } finally {
-        if (!ignore) {
+        if (!ignore && requestId === sequence) {
           setIsRefreshing(false);
         }
       }

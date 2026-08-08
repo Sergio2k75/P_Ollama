@@ -138,7 +138,11 @@ export function ModelsSection({ status }: ModelsSectionProps) {
           />
         </Card>
 
-        <RunningModelsCard host={status.host} initialRunning={status.running} />
+        <RunningModelsCard
+          key={status.host}
+          host={status.host}
+          initialRunning={status.running}
+        />
       </div>
 
       <Card title="Model recommendations" description="From GET /api/experimental/model-recommendations">
