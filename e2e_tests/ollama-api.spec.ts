@@ -9,6 +9,8 @@
  *   npm run test:e2e -- e2e_tests/ollama-api.spec.ts
  *   OLLAMA_HOST=http://192.168.1.10:11434 npx playwright test e2e_tests/ollama-api.spec.ts
  */
+import http from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { expect, test } from '@playwright/test';
 
 const OLLAMA_HOST = process.env.OLLAMA_HOST ?? 'http://127.0.0.1:11434';
@@ -80,4 +82,49 @@ test('still defaults omitted ports to 11434', async ({ request }) => {
   expect(response.ok()).toBeTruthy();
   const body = await response.json();
   expect(body.host).toBe('http://192.168.1.10:11434');
+});
+
+test('does not follow cross-host redirects when probing Ollama status', async ({ request }) => {
+  const secretPayload = {
+    version: 'SECRET_TOKEN_SHOULD_NOT_LEAK',
+    models: [{ name: 'leaked-internal-model' }],
+  };
+
+  const secretServer = http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(secretPayload));
+  });
+  await new Promise<void>((resolve) => secretServer.listen(0, '127.0.0.1', resolve));
+  const secretPort = (secretServer.address() as AddressInfo).port;
+
+  const evilServer = http.createServer((req, res) => {
+    res.writeHead(302, {
+      Location: `http://127.0.0.1:${secretPort}${req.url ?? '/'}`,
+    });
+    res.end();
+  });
+  await new Promise<void>((resolve) => evilServer.listen(0, '127.0.0.1', resolve));
+  const evilPort = (evilServer.address() as AddressInfo).port;
+
+  try {
+    const response = await request.get(
+      `/api/ollama/status?host=${encodeURIComponent(`http://127.0.0.1:${evilPort}`)}`,
+    );
+    expect(response.ok()).toBeTruthy();
+
+    const body = await response.json();
+    expect(body.online).toBe(false);
+    expect(body.version).toBeUndefined();
+    expect(JSON.stringify(body)).not.toContain('SECRET_TOKEN_SHOULD_NOT_LEAK');
+    expect(JSON.stringify(body)).not.toContain('leaked-internal-model');
+  } finally {
+    await Promise.all([
+      new Promise<void>((resolve, reject) =>
+        evilServer.close((error) => (error ? reject(error) : resolve())),
+      ),
+      new Promise<void>((resolve, reject) =>
+        secretServer.close((error) => (error ? reject(error) : resolve())),
+      ),
+    ]);
+  }
 });
