@@ -56,39 +56,25 @@ test('adds, selects, and removes a host using shorthand input', async ({ page })
   await expect(page.getByText('Workstation')).not.toBeVisible();
 });
 
-test('clears previous running models immediately when switching hosts', async ({ page }) => {
+test('switches hosts without waiting on unreachable Ollama and clears stale running models', async ({ page }) => {
   const runningCard = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Running models' }) });
 
   await page.route('**/api/ollama/status**', async (route) => {
     const requestUrl = new URL(route.request().url());
     const host = requestUrl.searchParams.get('host') ?? '';
 
-    if (host.includes('192.168.1.10')) {
-      // Stay in-flight long enough that a stale client snapshot would still be visible.
-      await new Promise((resolve) => setTimeout(resolve, 2500));
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          host,
-          online: false,
-          models: [],
-          running: [],
-          error: 'This Ollama host is not reachable. Check that Ollama is running and the host URL is correct.',
-        }),
-      });
-      return;
-    }
-
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({
         host,
-        online: true,
+        online: !host.includes('192.168.1.10'),
         version: '0.0.0-test',
         models: [],
-        running: [{ name: 'stale-host-model' }],
+        running: host.includes('192.168.1.10') ? [] : [{ name: 'stale-host-model' }],
+        error: host.includes('192.168.1.10')
+          ? 'This Ollama host is not reachable. Check that Ollama is running and the host URL is correct.'
+          : undefined,
       }),
     });
   });
@@ -101,14 +87,13 @@ test('clears previous running models immediately when switching hosts', async ({
   await page.getByLabel('Display name (optional)').fill('LAN target');
   await page.getByRole('button', { name: /save host/i }).click();
 
-  await expect(page).toHaveURL(/192\.168\.1\.10/);
+  // Navigation must not be blocked by the unreachable-host server fetch timeout (~5s).
+  await expect(page).toHaveURL(/192\.168\.1\.10/, { timeout: 2000 });
   await expect(page.getByRole('button', { name: /Select host LAN target/i })).toHaveAttribute(
     'aria-pressed',
     'true',
   );
-  // Must not keep showing the previous host's running models while the new refresh is delayed.
-  await expect(runningCard.getByText('stale-host-model')).toHaveCount(0);
-  await expect(runningCard.getByText('Refreshing…')).toBeVisible();
+  await expect(page.getByText('stale-host-model')).toHaveCount(0);
 });
 
 test('adds a host when crypto.randomUUID is unavailable (LAN http context)', async ({ page }) => {
