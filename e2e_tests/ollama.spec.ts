@@ -56,6 +56,64 @@ test('adds, selects, and removes a host using shorthand input', async ({ page })
   await expect(page.getByText('Workstation')).not.toBeVisible();
 });
 
+test('switches hosts without waiting on unreachable Ollama and clears stale running models', async ({ page }) => {
+  const runningCard = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Running models' }) });
+
+  await page.route('**/api/ollama/status**', async (route) => {
+    const requestUrl = new URL(route.request().url());
+    const host = requestUrl.searchParams.get('host') ?? '';
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        host,
+        online: !host.includes('192.168.1.10'),
+        version: '0.0.0-test',
+        models: [],
+        running: host.includes('192.168.1.10') ? [] : [{ name: 'stale-host-model' }],
+        error: host.includes('192.168.1.10')
+          ? 'This Ollama host is not reachable. Check that Ollama is running and the host URL is correct.'
+          : undefined,
+      }),
+    });
+  });
+
+  await page.reload();
+  await expect(runningCard.getByText('stale-host-model')).toBeVisible();
+
+  await page.getByRole('button', { name: /add host/i }).click();
+  await page.getByLabel('Host URL').fill('192.168.1.10');
+  await page.getByLabel('Display name (optional)').fill('LAN target');
+  await page.getByRole('button', { name: /save host/i }).click();
+
+  // Navigation must not be blocked by the unreachable-host server fetch timeout (~5s).
+  await expect(page).toHaveURL(/192\.168\.1\.10/, { timeout: 2000 });
+  await expect(page.getByRole('button', { name: /Select host LAN target/i })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(page.getByText('stale-host-model')).toHaveCount(0);
+});
+
+test('adds a host when crypto.randomUUID is unavailable (LAN http context)', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(globalThis.crypto, 'randomUUID', {
+      value: undefined,
+      configurable: true,
+    });
+  });
+  await page.reload();
+
+  await page.getByRole('button', { name: /add host/i }).click();
+  await page.getByLabel('Host URL').fill('192.168.1.20');
+  await page.getByLabel('Display name (optional)').fill('LAN box');
+  await page.getByRole('button', { name: /save host/i }).click();
+
+  await expect(page.getByText('LAN box')).toBeVisible();
+  await expect(page.getByText('http://192.168.1.20:11434')).toBeVisible();
+});
+
 test('keeps the dashboard usable on a small mobile viewport', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();

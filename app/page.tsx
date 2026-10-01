@@ -1,7 +1,9 @@
+import { Suspense } from "react";
 import { HostManager } from "@/components/HostManager";
 import { HeroSection } from "@/components/sections/HeroSection";
 import { ModelsSection } from "@/components/sections/ModelsSection";
 import { StatusSection } from "@/components/sections/StatusSection";
+import { Card } from "@/components/ui/Card";
 import { APP_VERSION } from "@/lib/app-version";
 import { DEFAULT_HOST_URL } from "@/lib/hosts";
 import { fetchOllamaStatus, validateHostUrl } from "@/lib/ollama";
@@ -10,6 +12,49 @@ import { PHeading, PText } from "@porsche-design-system/components-react/ssr";
 type PageProps = {
   searchParams: Promise<{ host?: string }>;
 };
+
+function HostDataFallback() {
+  return (
+    <div className="grid gap-fluid-lg" aria-busy="true" aria-live="polite">
+      <section className="grid gap-fluid-md">
+        <div className="grid gap-static-xs">
+          <PHeading tag="h2" size="2xl" weight="semibold">
+            Host status
+          </PHeading>
+          <PText size="small" color="contrast-medium">
+            Loading connection details for the selected host…
+          </PText>
+        </div>
+        <Card title="Connection" description="Fetching host status">
+          <PText size="small" color="contrast-medium">
+            Checking reachability…
+          </PText>
+        </Card>
+      </section>
+      <section className="grid gap-fluid-md">
+        <div className="grid gap-static-xs">
+          <PHeading tag="h2" size="2xl" weight="semibold">
+            Models
+          </PHeading>
+          <PText size="small" color="contrast-medium">
+            Loading models for the selected host…
+          </PText>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+async function HostStatusPanels({ activeHost }: { activeHost: string }) {
+  const status = await fetchOllamaStatus(activeHost);
+
+  return (
+    <>
+      <StatusSection status={status} />
+      <ModelsSection status={status} />
+    </>
+  );
+}
 
 /**
  * Home page displaying Ollama panel dashboard with host selection and status.
@@ -20,7 +65,6 @@ export default async function Home({ searchParams }: PageProps) {
   const params = await searchParams;
   const hostParam = params.host ?? DEFAULT_HOST_URL;
   const activeHost = validateHostUrl(hostParam) ?? DEFAULT_HOST_URL;
-  const status = await fetchOllamaStatus(activeHost);
 
   return (
     <div className="min-h-screen bg-canvas">
@@ -38,8 +82,9 @@ export default async function Home({ searchParams }: PageProps) {
       <main className="mx-auto grid max-w-[1120px] gap-fluid-lg px-fluid-md py-fluid-lg">
         <HeroSection />
         <HostManager activeHost={activeHost} />
-        <StatusSection status={status} />
-        <ModelsSection status={status} />
+        <Suspense key={activeHost} fallback={<HostDataFallback />}>
+          <HostStatusPanels activeHost={activeHost} />
+        </Suspense>
       </main>
 
       <footer className="border-t border-contrast-low bg-surface">

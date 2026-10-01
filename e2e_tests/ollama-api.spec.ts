@@ -9,6 +9,8 @@
  *   npm run test:e2e -- e2e_tests/ollama-api.spec.ts
  *   OLLAMA_HOST=http://192.168.1.10:11434 npx playwright test e2e_tests/ollama-api.spec.ts
  */
+import http from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { expect, test } from '@playwright/test';
 
 const OLLAMA_HOST = process.env.OLLAMA_HOST ?? 'http://127.0.0.1:11434';
@@ -54,4 +56,75 @@ test('GET /api/ollama/status defaults to a status object shape', async ({ reques
     models: expect.any(Array),
     running: expect.any(Array),
   }));
+});
+
+test('preserves explicit http:80 and https:443 instead of rewriting to 11434', async ({ request }) => {
+  const http80 = await request.get(
+    `/api/ollama/status?host=${encodeURIComponent('http://127.0.0.1:80')}`,
+  );
+  expect(http80.ok()).toBeTruthy();
+  const http80Body = await http80.json();
+  // URL.origin omits :80 for http; the critical assertion is that we did not force :11434
+  expect(http80Body.host).toBe('http://127.0.0.1');
+
+  const https443 = await request.get(
+    `/api/ollama/status?host=${encodeURIComponent('https://example.com:443')}`,
+  );
+  expect(https443.ok()).toBeTruthy();
+  const https443Body = await https443.json();
+  expect(https443Body.host).toBe('https://example.com');
+});
+
+test('still defaults omitted ports to 11434', async ({ request }) => {
+  const response = await request.get(
+    `/api/ollama/status?host=${encodeURIComponent('http://192.168.1.10')}`,
+  );
+  expect(response.ok()).toBeTruthy();
+  const body = await response.json();
+  expect(body.host).toBe('http://192.168.1.10:11434');
+});
+
+test('does not follow cross-host redirects when probing Ollama status', async ({ request }) => {
+  const secretPayload = {
+    version: 'SECRET_TOKEN_SHOULD_NOT_LEAK',
+    models: [{ name: 'leaked-internal-model' }],
+  };
+
+  const secretServer = http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(secretPayload));
+  });
+  await new Promise<void>((resolve) => secretServer.listen(0, '127.0.0.1', resolve));
+  const secretPort = (secretServer.address() as AddressInfo).port;
+
+  const evilServer = http.createServer((req, res) => {
+    res.writeHead(302, {
+      Location: `http://127.0.0.1:${secretPort}${req.url ?? '/'}`,
+    });
+    res.end();
+  });
+  await new Promise<void>((resolve) => evilServer.listen(0, '127.0.0.1', resolve));
+  const evilPort = (evilServer.address() as AddressInfo).port;
+
+  try {
+    const response = await request.get(
+      `/api/ollama/status?host=${encodeURIComponent(`http://127.0.0.1:${evilPort}`)}`,
+    );
+    expect(response.ok()).toBeTruthy();
+
+    const body = await response.json();
+    expect(body.online).toBe(false);
+    expect(body.version).toBeUndefined();
+    expect(JSON.stringify(body)).not.toContain('SECRET_TOKEN_SHOULD_NOT_LEAK');
+    expect(JSON.stringify(body)).not.toContain('leaked-internal-model');
+  } finally {
+    await Promise.all([
+      new Promise<void>((resolve, reject) =>
+        evilServer.close((error) => (error ? reject(error) : resolve())),
+      ),
+      new Promise<void>((resolve, reject) =>
+        secretServer.close((error) => (error ? reject(error) : resolve())),
+      ),
+    ]);
+  }
 });

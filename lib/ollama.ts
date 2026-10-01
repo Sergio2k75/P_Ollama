@@ -10,8 +10,18 @@ const FETCH_TIMEOUT_MS = 5000;
 const HTTP_SCHEME_PATTERN = /^https?:\/\//i;
 
 /**
+ * True when the candidate URL string includes an explicit numeric port.
+ * Needed because `URL.port` is "" for protocol defaults (http:80, https:443)
+ * even when the input was `host:80` / `host:443`.
+ */
+function hasExplicitPort(candidate: string): boolean {
+  return /^https?:\/\/(?:\[[^\]]+\]|[^[/:?#]+):\d+(?:[/?#]|$)/i.test(candidate);
+}
+
+/**
  * Normalizes shorthand host input (IP, hostname, or full URL) to an Ollama base URL.
  * Prepends http:// when missing; defaults port to Ollama's 11434 when omitted.
+ * Explicit ports are preserved, including http:80 and https:443.
  * @param raw - User-entered host string
  * @returns Normalized origin (including explicit port) or null if invalid
  */
@@ -25,6 +35,8 @@ export function normalizeHostInput(raw: string): string | null {
   if (!HTTP_SCHEME_PATTERN.test(candidate)) {
     candidate = `http://${candidate}`;
   }
+
+  const explicitPort = hasExplicitPort(candidate);
 
   let url: URL;
   try {
@@ -54,7 +66,9 @@ export function normalizeHostInput(raw: string): string | null {
     return null;
   }
 
-  if (!url.port) {
+  // Only default to 11434 when the user omitted a port. Do not treat
+  // protocol-default ports (80/443) as omitted — URL.port is empty for those.
+  if (!explicitPort) {
     url.port = String(OLLAMA_DEFAULT_PORT);
   }
 
@@ -72,6 +86,9 @@ export function validateHostUrl(raw: string): string | null {
 
 /**
  * Fetches and parses JSON from a URL with timeout protection.
+ * Redirects are not followed: `normalizeHostInput` only validates the
+ * caller-chosen origin, so following `Location` would allow SSRF into
+ * internal hosts/paths that validation intentionally rejects.
  * @param url - The URL to fetch from
  * @returns The parsed JSON response or null if the request fails
  */
@@ -80,6 +97,7 @@ async function fetchJson<T>(url: string): Promise<T | null> {
     const response = await fetch(url, {
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       cache: "no-store",
+      redirect: "manual",
     });
     if (!response.ok) {
       return null;
@@ -124,8 +142,10 @@ export async function fetchOllamaStatus(hostInput: string): Promise<OllamaPanelS
   }
 
   const versionData = await fetchJson<VersionResponse>(`${host}/api/version`);
+  const version =
+    typeof versionData?.version === "string" ? versionData.version : null;
 
-  if (!versionData?.version) {
+  if (!version) {
     return {
       host,
       online: false,
@@ -144,9 +164,45 @@ export async function fetchOllamaStatus(hostInput: string): Promise<OllamaPanelS
   return {
     host,
     online: true,
-    version: versionData.version,
-    models: tagsData?.models ?? [],
-    running: psData?.models ?? [],
-    recommendations: recommendationsData?.recommendations ?? [],
+    version,
+    models: sanitizeNamedModels(tagsData?.models),
+    running: sanitizeNamedModels(psData?.models),
+    recommendations: sanitizeRecommendations(recommendationsData?.recommendations),
   };
+}
+
+function sanitizeNamedModels<T extends { name: string }>(models: unknown): T[] {
+  if (!Array.isArray(models)) {
+    return [];
+  }
+
+  return models.flatMap((item) => {
+    if (!item || typeof item !== "object") {
+      return [];
+    }
+    const name = (item as { name?: unknown }).name;
+    if (typeof name !== "string" || !name) {
+      return [];
+    }
+    return [item as T];
+  });
+}
+
+function sanitizeRecommendations(
+  recommendations: unknown,
+): NonNullable<OllamaPanelStatus["recommendations"]> {
+  if (!Array.isArray(recommendations)) {
+    return [];
+  }
+
+  return recommendations.flatMap((item) => {
+    if (!item || typeof item !== "object") {
+      return [];
+    }
+    const model = (item as { model?: unknown }).model;
+    if (typeof model !== "string" || !model) {
+      return [];
+    }
+    return [item as NonNullable<OllamaPanelStatus["recommendations"]>[number]];
+  });
 }
