@@ -214,6 +214,10 @@ export function HostManager({ activeHost }: HostManagerProps) {
                   <PText size="small" weight="semibold">
                     {host.name}
                   </PText>
+
+                <div className="flex-shrink-0 flex-grow-1">
+                </div>
+
                   <PText size="x-small" color="contrast-medium" ellipsis>
                     {host.url}
                   </PText>
