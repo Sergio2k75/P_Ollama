@@ -40,7 +40,12 @@ if (playwright.status !== 0) {
 
 const gitAdd = spawnSync(
   "git",
-  ["add", "lib/app-version.ts", "docs/screenshots/overview.png"],
+  [
+    "add",
+    "lib/app-version.ts",
+    "docs/screenshots/overview.png",
+    `docs/screenshots/${next}.png`,
+  ],
   { cwd: rootDir, stdio: "inherit", shell: true },
 );
 

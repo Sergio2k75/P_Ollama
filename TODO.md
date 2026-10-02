@@ -1,6 +1,6 @@
 ## Features
 - add screenshots to docs\screenshots with app version, so it will be possible to track visual changes
-Fixed [ ]
+Fixed [X]
 
 ## Bugs
 - New host merged and being displayed as hostname+hosturl, while the default local host diplayed correctly
