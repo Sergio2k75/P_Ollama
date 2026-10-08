@@ -199,10 +199,38 @@ function sanitizeRecommendations(
     if (!item || typeof item !== "object") {
       return [];
     }
-    const model = (item as { model?: unknown }).model;
-    if (typeof model !== "string" || !model) {
+
+    const raw = item as Record<string, unknown>;
+    if (typeof raw.model !== "string" || !raw.model) {
       return [];
     }
-    return [item as NonNullable<OllamaPanelStatus["recommendations"]>[number]];
+
+    // Rebuild each row with primitives only. Passing the raw object through
+    // lets non-string description/required_plan values reach React and crash
+    // the status panels ("Objects are not valid as a React child").
+    const sanitized: NonNullable<OllamaPanelStatus["recommendations"]>[number] = {
+      model: raw.model,
+    };
+
+    if (typeof raw.description === "string") {
+      sanitized.description = raw.description;
+    }
+    if (typeof raw.context_length === "number" && Number.isFinite(raw.context_length)) {
+      sanitized.context_length = raw.context_length;
+    }
+    if (
+      typeof raw.max_output_tokens === "number" &&
+      Number.isFinite(raw.max_output_tokens)
+    ) {
+      sanitized.max_output_tokens = raw.max_output_tokens;
+    }
+    if (typeof raw.required_plan === "string") {
+      sanitized.required_plan = raw.required_plan;
+    }
+    if (typeof raw.vram_bytes === "number" && Number.isFinite(raw.vram_bytes)) {
+      sanitized.vram_bytes = raw.vram_bytes;
+    }
+
+    return [sanitized];
   });
 }
