@@ -84,6 +84,86 @@ test('still defaults omitted ports to 11434', async ({ request }) => {
   expect(body.host).toBe('http://192.168.1.10:11434');
 });
 
+test('strips non-primitive recommendation fields that would crash React render', async ({
+  request,
+}) => {
+  const ollamaServer = http.createServer((req, res) => {
+    const path = req.url ?? '/';
+
+    if (path === '/api/version') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ version: '0.0.0-test' }));
+      return;
+    }
+
+    if (path === '/api/tags' || path === '/api/ps') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ models: [] }));
+      return;
+    }
+
+    if (path === '/api/experimental/model-recommendations') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          recommendations: [
+            {
+              model: 'safe-model',
+              description: { nested: 'should-not-render' },
+              required_plan: { tier: 'pro' },
+              context_length: '8192',
+              max_output_tokens: null,
+              vram_bytes: 'not-a-number',
+            },
+            {
+              model: 'ok-model',
+              description: 'A fine description',
+              required_plan: 'free',
+              context_length: 4096,
+              max_output_tokens: 512,
+              vram_bytes: 1024,
+            },
+          ],
+        }),
+      );
+      return;
+    }
+
+    res.writeHead(404);
+    res.end();
+  });
+
+  await new Promise<void>((resolve) => ollamaServer.listen(0, '127.0.0.1', resolve));
+  const ollamaPort = (ollamaServer.address() as AddressInfo).port;
+
+  try {
+    const response = await request.get(
+      `/api/ollama/status?host=${encodeURIComponent(`http://127.0.0.1:${ollamaPort}`)}`,
+    );
+    expect(response.ok()).toBeTruthy();
+
+    const body = await response.json();
+    expect(body.online).toBe(true);
+    expect(body.recommendations).toEqual([
+      { model: 'safe-model' },
+      {
+        model: 'ok-model',
+        description: 'A fine description',
+        required_plan: 'free',
+        context_length: 4096,
+        max_output_tokens: 512,
+        vram_bytes: 1024,
+      },
+    ]);
+    expect(JSON.stringify(body.recommendations)).not.toContain('should-not-render');
+    expect(JSON.stringify(body.recommendations)).not.toContain('tier');
+  } finally {
+    await new Promise<void>((resolve, reject) =>
+      ollamaServer.close((error) => (error ? reject(error) : resolve())),
+    );
+  }
+});
+
 test('does not follow cross-host redirects when probing Ollama status', async ({ request }) => {
   const secretPayload = {
     version: 'SECRET_TOKEN_SHOULD_NOT_LEAK',
